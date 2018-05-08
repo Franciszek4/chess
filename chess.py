@@ -1,8 +1,7 @@
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-import socket
-from threading import Thread
+
 
 class Chess(QGraphicsItem):
     def __init__(self):
@@ -501,13 +500,8 @@ class MainWindow(QGraphicsView):
         view = QGraphicsView(self.scene, self)
         layout = QGridLayout()
 
-        info_window = QTextEdit()
-        info_window.setFocusPolicy(Qt.NoFocus)
-
-        connect_button = QPushButton("connect", self)
-        connect_button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.MinimumExpanding)
-        connect_button.clicked.connect(self.button_actions)
-        connect_button.setFocusPolicy(Qt.NoFocus)
+        # info_window = QLineEdit()
+        # info_window.setFocusPolicy(Qt.NoFocus)
 
         btn_new_game = QPushButton("new game", self)
         btn_new_game.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.MinimumExpanding)
@@ -522,16 +516,11 @@ class MainWindow(QGraphicsView):
         layout.addWidget(view, 0, 0, 8, 8)
         layout.addWidget(btn_new_game, 8, 0, 1, 8)
         layout.addWidget(btn_exit, 9, 0, 1, 8)
-        layout.addWidget(connect_button, 10, 0, 1, 8)
-        layout.addWidget(info_window, 11, 0, 1, 8)
 
         self.setLayout(layout)
-        self.setGeometry(300, 300, 390, 530)
+        self.setGeometry(300, 300, 390, 450)
         self.setCacheMode(QGraphicsView.CacheBackground)
-        self.setWindowTitle("Chess-client")
-
-        self.socket = None
-        self.th = None
+        self.setWindowTitle("Chess")
 
     def button_actions(self):
         sender = self.sender()
@@ -542,31 +531,6 @@ class MainWindow(QGraphicsView):
             del self.game
             self.game = Chess()
             self.scene.addItem(self.game)
-        elif sender.text() == "connect":
-            self.create_connection()
-
-    def create_connection(self):
-        if self.socket is None:
-            TCP_IP = 'localhost'
-            TCP_PORT = 50002
-            print("1")
-            #self.info_window.append('Connecting...\n')
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.connect((TCP_IP, TCP_PORT))
-            #self.info_window.append('Connected: ' + str(self.addr) + '\n')
-            print("2")
-            self.th = Thread(target=self.recv_msg)
-            self.th.start()
-        else:
-            self.socket.close()
-            self.th.join()
-            self.socket = None
-            self.th = None
-
-    def recv_msg(self):
-        while self.socket is not None:
-            msg = self.socket.recv(1024)
-            self.info_window.append('Server : ' + msg.decode() + '\n')
 
     def keyPressEvent(self, event):
         key = event.key()
