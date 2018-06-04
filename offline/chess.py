@@ -1,6 +1,8 @@
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from piece import Piece
+import random
 
 
 class Chess(QGraphicsItem):
@@ -20,6 +22,7 @@ class Chess(QGraphicsItem):
         self.possible_movements = []
         self.last_x, self.last_y = -1, -1
         self.undo_piece = None
+        self.minmax_depth = 3
 
     def boundingRect(self):
         return QRectF(0, 0, 360, 360)
@@ -88,7 +91,6 @@ class Chess(QGraphicsItem):
         super(Chess, self).mousePressEvent(event)
 
     def movement_service(self, y, x):
-
         if self.which_click == 1:
             self.last_x, self.last_y = x, y
             if self.board[y][x].get_team() == self.turn:
@@ -110,6 +112,11 @@ class Chess(QGraphicsItem):
                         self.downgrade_turn()
                     else:
                         self.update_turn()
+                        self.npc_move()
+                        if self.turn > 1:
+                            self.turn = 1
+                        else:
+                            self.turn += 1
             else:
                 self.downgrade_turn()
             self.possible_movements = []
@@ -120,6 +127,133 @@ class Chess(QGraphicsItem):
                     print('wygraly czarne')
                 else:
                     print('wygraly biale')
+
+    def minmax(self, depth, isLookingForMax):
+
+        if depth == 0:
+            return self.count_figures(), None, None
+
+        if isLookingForMax:
+            next = False
+        else:
+            next = True
+
+        if self.turn == 2:
+            npc_figures = self.find_npc_figures()
+        else:
+            npc_figures = self.find_player_figures()
+
+        figures = []
+        moves = []
+        results = []
+        for i in range(0, len(npc_figures)):
+            figure = npc_figures[i]
+            f_moves = self.lista_poprawnych_ruchow(figure[0], figure[1])
+            if len(f_moves) > 0:
+                for j in range(0, len(f_moves)):
+                    moves.append(f_moves[j])
+                    figures.append(figure)
+
+        for j in range(0, len(moves)):
+            current_move = moves[j]
+            current_figure = figures[j]
+            temp1 = self.board[current_move[0]][current_move[1]]
+            temp2 = self.board[current_figure[0]][current_figure[1]]
+            self.move(current_move[0], current_move[1], current_figure[0], current_figure[1])
+            if self.turn > 1:
+                self.turn = 1
+            else:
+                self.turn += 1
+            value, smieci1, smieci2 = self.minmax(depth-1, next)
+            results.append(value)
+            if self.turn > 1:
+                self.turn = 1
+            else:
+                self.turn += 1
+            self.board[current_move[0]][current_move[1]] = temp1
+            self.board[current_figure[0]][current_figure[1]] = temp2
+
+        if isLookingForMax:
+            min_val = min(results)
+            possibilities = results.count(min_val)
+            if possibilities > 1:
+                shuffle_list = []
+                for i in range(0, len(results)):
+                    if results[i] == min_val:
+                        shuffle_list.append(i)
+                random.shuffle(shuffle_list)
+                idx = shuffle_list[0]
+            else:
+                idx = results.index(min_val)
+            return results[idx], figures[idx], moves[idx]
+        else:
+            max_val = max(results)
+            possibilities = results.count(max_val)
+            if possibilities > 1:
+                shuffle_list = []
+                for i in range(0, len(results)):
+                    if results[i] == max_val:
+                        shuffle_list.append(i)
+                random.shuffle(shuffle_list)
+                idx = shuffle_list[0]
+            else:
+                idx = results.index(max_val)
+            return results[idx], figures[idx], moves[idx]
+
+
+    def npc_move(self):
+
+        result, figure, move = self.minmax(self.minmax_depth, True)
+        self.move(move[0], move[1], figure[0], figure[1])
+        self.update()
+
+    def find_npc_figures(self):
+        npc_figures = []
+        for i in range(0, 8):
+            for j in range(0, 8):
+                if self.board[i][j].get_team() == 2:
+                    npc_figures.append([i, j])
+        return npc_figures
+
+    def find_player_figures(self):
+        npc_figures = []
+        for i in range(0, 8):
+            for j in range(0, 8):
+                if self.board[i][j].get_team() == 1:
+                    npc_figures.append([i, j])
+        return npc_figures
+
+    def count_figures(self):
+        sum = 0
+        for i in range(0, 8):
+            for j in range(0, 8):
+                if self.board[i][j].get_team() != self.turn:
+                    if self.board[i][j].get_piece() == 'w':
+                        sum -= 50
+                    elif self.board[i][j].get_piece() == 's':
+                        sum -= 30
+                    elif self.board[i][j].get_piece() == 'g':
+                        sum -= 30
+                    elif self.board[i][j].get_piece() == 'h':
+                        sum -= 90
+                    elif self.board[i][j].get_piece() == 'k':
+                        sum -= 900
+                    elif self.board[i][j].get_piece() == 'p':
+                        sum -= 10
+                elif self.board[i][j].get_team() == self.turn:
+                    if self.board[i][j].get_piece() == 'w':
+                        sum += 50
+                    elif self.board[i][j].get_piece() == 's':
+                        sum += 30
+                    elif self.board[i][j].get_piece() == 'g':
+                        sum += 30
+                    elif self.board[i][j].get_piece() == 'h':
+                        sum += 90
+                    elif self.board[i][j].get_piece() == 'k':
+                        sum += 900
+                    elif self.board[i][j].get_piece() == 'p':
+                        sum += 10
+        return sum
 
     def move(self, new_y, new_x, old_y, old_x):
         self.undo_piece = self.board[new_y][new_x]
@@ -469,76 +603,3 @@ class Chess(QGraphicsItem):
                 movements_list.append([i, j - 2])
 
         return movements_list
-
-class Piece:
-
-    def __init__(self, piece, team):
-        self.piece = piece
-        self.team = team
-        self.moved = False
-        self.clicked = False
-        self.in_check = False
-
-    def get_piece(self):
-        return self.piece
-
-    def get_team(self):
-        return self.team
-
-    def set_check(self, num):
-        self.in_check = num
-
-class MainWindow(QGraphicsView):
-    def __init__(self):
-        super(MainWindow, self).__init__()
-
-        self.scene = QGraphicsScene(self)
-        self.game = Chess()
-        self.scene.addItem(self.game)
-        self.scene.setSceneRect(0, 0, 360, 360)
-
-        view = QGraphicsView(self.scene, self)
-        layout = QGridLayout()
-
-        # info_window = QLineEdit()
-        # info_window.setFocusPolicy(Qt.NoFocus)
-
-        btn_new_game = QPushButton("new game", self)
-        btn_new_game.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.MinimumExpanding)
-        btn_new_game.clicked.connect(self.button_actions)
-        btn_new_game.setFocusPolicy(Qt.NoFocus)
-
-        btn_exit = QPushButton("exit", self)
-        btn_exit.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.MinimumExpanding)
-        btn_exit.clicked.connect(self.button_actions)
-        btn_exit.setFocusPolicy(Qt.NoFocus)
-
-        layout.addWidget(view, 0, 0, 8, 8)
-        layout.addWidget(btn_new_game, 8, 0, 1, 8)
-        layout.addWidget(btn_exit, 9, 0, 1, 8)
-
-        self.setLayout(layout)
-        self.setGeometry(300, 300, 390, 450)
-        self.setCacheMode(QGraphicsView.CacheBackground)
-        self.setWindowTitle("Chess")
-
-    def button_actions(self):
-        sender = self.sender()
-        if sender.text() == "exit":
-            self.close()
-        elif sender.text() == "new game":
-            self.scene.removeItem(self.game)
-            del self.game
-            self.game = Chess()
-            self.scene.addItem(self.game)
-
-    def keyPressEvent(self, event):
-        key = event.key()
-        super(MainWindow, self).keyPressEvent(event)
-
-if __name__ == '__main__':
-    import sys
-    app = QApplication(sys.argv)
-    mainWindow = MainWindow()
-    mainWindow.show()
-    sys.exit(app.exec_())

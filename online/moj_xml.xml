@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<rozgrywka>
+	<move player="1">[2, 2, 0, 1]</move>
+	<move player="2">[5, 2, 7, 1]</move>
+	<move player="1">[3, 4, 2, 2]</move>
+	<move player="2">[4, 0, 5, 2]</move>
+	<move player="1">[5, 3, 3, 4]</move>
+</rozgrywka>
